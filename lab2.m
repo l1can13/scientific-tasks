@@ -1,54 +1,33 @@
 clc; close all; clear all;
 
-% Параметры задачи
-lambda = 0.532e-6; % длина волны в метрах
+% Параметры
+lambda = 0.532e-6; % длина волны
+n = 1; % показатель преломления
 NA = 0.9; % числовая апертура
-n = 1; % показатель преломления среды (воздух)
-k = 2*pi/lambda; % волновое число
-f = 1; % фокусное расстояние в условных единицах
-alpha_min = 0.9 * NA; % минимальный угол кольцевой апертуры
-theta_max = asin(NA / n); % максимальный угол
+alpha_min = 0.9 * NA; % минимальный угол для кольцевой апертуры
+z = linspace(-10e-6, 10e-6, 1000); % диапазон значений z
 
-% Сетка по x и y в микрометрах
-x = linspace(-1, 1, 100) * 1e-6;
-y = linspace(-1, 1, 100) * 1e-6;
-[X, Y] = meshgrid(x, y);
-r = sqrt(X.^2 + Y.^2); % радиальное расстояние от центра в метрах
-phi = atan2(Y, X); % азимутальный угол в радианах
+% Функции для интегрирования
+E_field = @(rho, z) (2 * pi / lambda) .* rho .* exp(-1i .* (2 * pi / lambda) .* n .* z .* sqrt(1 - (rho / NA).^2));
+E_field_ring = @(rho, z) (2 * pi / lambda) .* rho .* exp(-1i .* (2 * pi / lambda) .* n .* z .* sqrt(1 - (rho / NA).^2)) .* (rho >= alpha_min);
 
-% Расчет интенсивности без кольцевой апертуры
-I_no_aperture = zeros(size(X));
-for i = 1:numel(X)
-    integrand = @(theta) sin(theta).^2 .* besselj(0, k * r(i) * sin(theta)) .* exp(-1i * k * f * cos(theta));
-    I_no_aperture(i) = abs(integral(integrand, 0, theta_max))^2;
-end
-
-% Расчет интенсивности с кольцевой апертурой
-I_with_aperture = zeros(size(X));
-theta_min = asin(alpha_min / n);
-for i = 1:numel(X)
-    integrand = @(theta) sin(theta).^2 .* besselj(0, k * r(i) * sin(theta)) .* exp(-1i * k * f * cos(theta));
-    I_with_aperture(i) = abs(integral(integrand, theta_min, theta_max))^2;
-end
+% Расчет интенсивности для полной и кольцевой апертуры
+I_full = arrayfun(@(z) abs(integral(@(rho) E_field(rho, z), 0, NA))^2, z);
+I_ring = arrayfun(@(z) abs(integral(@(rho) E_field_ring(rho, z), 0, NA))^2, z);
 
 % Нормализация интенсивности
-I_no_aperture = I_no_aperture / max(I_no_aperture(:));
-I_with_aperture = I_with_aperture / max(I_with_aperture(:));
+I_full_norm = I_full / max(I_full);
+I_ring_norm = I_ring / max(I_ring);
 
-% Визуализация без кольцевой апертуры
-figure;
-imagesc(x * 1e6, y * 1e6, I_no_aperture);
-axis square;
-xlabel('x (мкм)');
-ylabel('y (мкм)');
-title('Распределение интенсивности без кольцевой апертуры');
-colorbar;
+% Визуализация
+subplot(2, 1, 1);
+plot(z, I_full_norm);
+title('Продольное распределение интенсивности без кольцевой апертуры');
+xlabel('z (м)');
+ylabel('Нормализованная интенсивность');
 
-% Визуализация с кольцевой апертурой
-figure;
-imagesc(x * 1e6, y * 1e6, I_with_aperture);
-axis square;
-xlabel('x (мкм)');
-ylabel('y (мкм)');
-title('Распределение интенсивности с кольцевой апертурой');
-colorbar;
+subplot(2, 1, 2);
+plot(z, I_ring_norm);
+title('Продольное распределение интенсивности с кольцевой апертурой');
+xlabel('z (м)');
+ylabel('Нормализованная интенсивность');

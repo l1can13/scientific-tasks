@@ -1,35 +1,39 @@
-% Параметры апертуры и волны
-lambda = 1; % Взяли за единицу измерения, так как диаметр дан в λ
-diameter = 15 * lambda; % Диаметр апертуры
-radius = diameter / 2;
-k = 2 * pi / lambda; % Волновое число
+clc; close all; clear all;
 
-% Дискретизация пространства
-x = linspace(-3*lambda, 3*lambda, 1000);
-y = x;
-[X, Y] = meshgrid(x, y);
-r = sqrt(X.^2 + Y.^2);
+% Параметры
+lambda = 532e-9; % длина волны в метрах
+k = 2*pi / lambda; % волновое число
+R = 15 * lambda / 2; % радиус апертуры
+U0 = 1; % амплитуда волны на апертуре
+z_values = [50 * lambda, 100 * lambda]; % расстояния от экрана
+x_values = linspace(-10*lambda, 10*lambda, 500); % значения x для расчета
 
-% Расчет поля на разных расстояниях
-z = [50*lambda, 100*lambda]; % Расстояния от апертуры
+% Функция для расчета U
+function U = calc_U(x, z, k, R, U0, lambda)
+    r = linspace(0, R, 100); % Радиальные координаты
+    theta = linspace(0, 2*pi, 100); % Угловые координаты
 
-% Инициализация массива для интенсивности
-I = zeros(length(x), length(y), length(z));
+    [R_mesh, Theta_mesh] = meshgrid(r, theta); % Создаем сетку координат
+    X_mesh = R_mesh .* cos(Theta_mesh); % Преобразование в декартовы координаты
+    Y_mesh = R_mesh .* sin(Theta_mesh);
 
-% Вычисление интенсивности с использованием интеграла Рэлея-Зоммерфельда первого рода
-for idx = 1:length(z)
-    U = (radius^2) * (besselj(1, k * radius * r ./ z(idx)) ./ (k * radius * r ./ z(idx))).^2;
-    U(r >= radius) = 0; % Обнуляем значения вне апертуры
-    I(:,:,idx) = U.^2; % Интенсивность пропорциональна квадрату амплитуды
+    % Расчет расстояния до каждой точки апертуры
+    S_mesh = sqrt((x - X_mesh).^2 + Y_mesh.^2 + z^2);
+
+    % Интегрирование с использованием векторизации
+    dA = R_mesh .* lambda^2; % Элемент площади в полярных координатах
+    U_integral = exp(i*k*S_mesh) ./ S_mesh .* (1 + i*k./S_mesh) .* dA;
+    U = sum(U_integral(:)) / (i * lambda);
 end
 
-% Построение графиков интенсивности
-for idx = 1:length(z)
+% Расчет и визуализация
+for z = z_values
+    U_x = arrayfun(@(x) calc_U(x, z, k, R, U0, lambda), x_values);
+    I_x = abs(U_x).^2;
     figure;
-    imagesc(x, y, I(:,:,idx));
-    colorbar;
-    title(sprintf('Intensity distribution at z = %dλ', z(idx)));
-    xlabel('x, \mum');
-    ylabel('y, \mum');
+    plot(x_values / lambda, I_x);
+    xlabel('x / lambda');
+    ylabel('Intensity');
+    title(['Intensity distribution at z = ', num2str(z/lambda), ' lambda']);
 end
 
