@@ -23,17 +23,21 @@ function U = calc_U(x, z, k, R, U0, lambda)
     % Интегрирование с использованием векторизации
     dA = R_mesh .* lambda^2; % Элемент площади в полярных координатах
     U_integral = exp(i*k*S_mesh) ./ S_mesh .* (1 + i*k./S_mesh) .* dA;
-    U = sum(U_integral(:)) / (i * lambda);
+    U = sum(U_integral(:)) * U0 / (i * lambda);
 end
 
 % Расчет и визуализация
 for z = z_values
     U_x = arrayfun(@(x) calc_U(x, z, k, R, U0, lambda), x_values);
     I_x = abs(U_x).^2;
+
+    % Нормализация интенсивности
+    I_x = I_x / max(I_x);
+
     figure;
     plot(x_values / lambda, I_x);
     xlabel('x / lambda');
-    ylabel('Intensity');
-    title(['Intensity distribution at z = ', num2str(z/lambda), ' lambda']);
+    ylabel('Normalized Intensity');
+    title(['Normalized intensity distribution at z = ', num2str(z/lambda), ' lambda']);
 end
 
